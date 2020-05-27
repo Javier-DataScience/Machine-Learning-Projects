@@ -1,0 +1,165 @@
+#  Diagnosing breast cancer with the k-NN algorithm
+rm(list=ls())
+
+# Step 1 – collecting data
+
+# https://www.kaggle.com/hdza1991/breast-cancer-wisconsin-data-set?select=wisc_bc_data.csv
+
+# The breast cancer data includes 569 examples of cancer biopsies, each with 
+# 32 features. One feature is an identification number, another is the cancer diagnosis, 
+# and 30 are numeric-valued laboratory measurements. The diagnosis is coded as "M" 
+# to indicate malignant or "B" to indicate benign.
+# The 30 numeric measurements comprise the mean, standard error, and worst (that 
+#                                                                           is, largest) value for 10 different characteristics of the digitized cell nuclei. These 
+# include:
+# •  Radius
+# •  Texture
+# •  Perimeter
+# •  Area
+# •  Smoothness
+# •  Compactness
+# •  Concavity
+# •  Concave points
+# •  Symmetry
+# •  Fractal dimension
+
+wbcd <- read.csv("F:\\DATA_SCIENCE\\R-STUDIO\\MACHINE LEARNING WITH R\\MACHINE EARNING WITH R 2019\\datasets_8952_12464_wisc_bc_data.csv"
+)
+dim(wbcd)
+str(wbcd)
+summary(wbcd) 
+class(wbcd)
+variable_class <-lapply(wbcd, class) # Function to find out the class of every column
+
+
+# Step 2 – exploring and preparing the data
+
+# The first variable is an integer variable named id. As this is simply a unique 
+# identifier (ID) for each patient in the data, it does not provide useful information 
+# and we will need to exclude it from the model.
+
+# Let's drop the id feature altogether. As it is located in the first column, we 
+# can exclude it by making a copy of the wbcd data frame without column 1:
+wbcd <- wbcd[-1]
+
+# amount and proportion of masses which are benign and malignant
+table(wbcd$diagnosis)
+table(wbcd$diagnosis)/nrow(wbcd)
+
+# Many R machine learning classifiers require the target feature to be coded as a factor, 
+# so we will need to recode the diagnosis variable. We will also take this opportunity 
+# to give the "B" and "M" values more informative labels using the labels parameter:
+
+wbcd$diagnosis <- factor(wbcd$diagnosis, levels = c("B", "M"), 
+                         labels = c("Benign", "Malignant"))
+
+# Transformation – normalizing numeric data
+
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+
+# This function takes a vector x of numeric values, and for each value in x, subtracts the 
+# minimum x value and divides by the range of x values. Lastly, the resulting vector 
+# is returned.
+
+
+# The lapply() function takes a list and applies a specified function to each list 
+# element. As a data frame is a list of equal-length vectors, we can use lapply() to 
+# apply normalize() to each feature in the data frame. The final step is to con vert the 
+# list returned by lapply() to a data frame using the as.data.frame() function. The 
+# full process looks like this:
+
+wbcd_n <- as.data.frame(lapply(wbcd[2:31], normalize))
+
+#   Data preparation – creating training and test datasets
+
+# split the wbcd_n data frame into wbcd_train and wbcd_test
+wbcd_train <- wbcd_n[1:469, ]
+wbcd_test <- wbcd_n[470:569, ]
+
+# For training the k-NN model, we will need to 
+# store these class labels in factor vectors, split between the training and test datasets:
+
+# the target variable, diagnosis.
+wbcd_train_labels <- wbcd[1:469, 1]
+wbcd_test_labels <- wbcd[470:569, 1]
+
+
+# Step 3 – training a model on the data
+library(class)
+
+# The knn() function in the class package provides a standard, classic 
+# implementation of the k-NN algorithm. For each instance in the test data, the 
+# function will identify the k nearest neighbors, using Euclidean distance, where k is 
+# a user-specified number. 
+
+# As our training data includes 469 instances, we might try k = 21, an odd number 
+# roughly equal to the square root of 469. 
+floor(sqrt(nrow(wbcd_train)))
+
+#Now we can use the knn() function to classify the test data:
+ 
+ wbcd_test_pred <- knn(train = wbcd_train, test = wbcd_test,
+                          cl = wbcd_train_labels, k = 21)
+ 
+ # The knn() function returns a factor vector of predicted labels for each of the examples 
+ # in the wbcd_test dataset. We have assigned these predictions to wbcd_test_pred.
+ 
+ 
+ # Step 4 – evaluating model performance
+ 
+ # The next step of the process is to evaluate how well the predicted classes in 
+ # the wbcd_test_pred vector match the actual values in the wbcd_test_labels 
+ # vector. To do this, we can use the CrossTable() function in the gmodels 
+ # package  install. packages("gmodels")
+ 
+ library(gmodels) 
+
+ # After loading the package with the library(gmodels) command, we can create 
+ # a cross tabulation indicating the agreement between the predicted and actual label 
+ # vectors. Specifying prop.chisq = FALSE will remove the unnecessary chi-square 
+ # values from the output: 
+
+ CrossTable(x = wbcd_test_labels, y = wbcd_test_pred,
+            prop.chisq = FALSE) 
+ # True Negatives 77 - False Negatives 0
+ # True Positives 21 - False Positives 2
+ 
+ #              Step 5 
+ #      improving model performance
+ 
+ # two simple variations on our previous classifier.
+ # First, we will employ an alternative method for rescaling our numeric features. 
+ # Second, we will try several different k values
+ 
+ #    Transformation – z-score standardization
+ 
+#  To standardize a vector, we can use R's built-in scale() function, which by 
+# default rescales values using the z-score standardization. The scale() function 
+# can be applied directly to a data frame, so there is no need to use the lapply() 
+# function. 
+ 
+ wbcd_z <- as.data.frame(scale(wbcd[-1]))
+
+ # This rescales all features with the exception of diagnosis in the first column 
+ # and stores the result as the wbcd_z data frame. 
+ summary(wbcd_z$area_mean)
+
+ # As we have done before, we need to divide the z-score-transformed data into 
+ # training and test sets, and classify the test instances using the knn() function. 
+ # We'll then compare the predicted labels to the actual labels using CrossTable(): 
+ 
+ wbcd_train <- wbcd_z[1:469, ]
+ wbcd_test <- wbcd_z[470:569, ]
+ wbcd_train_labels <- wbcd[1:469, 1]
+ wbcd_test_labels <- wbcd[470:569, 1]
+ wbcd_test_pred <- knn(train = wbcd_train, test = wbcd_test,
+                         cl = wbcd_train_labels, k = 21)
+ CrossTable(x = wbcd_test_labels, y = wbcd_test_pred,
+              prop.chisq = FALSE)
+
+ # the results of the new transformation show 
+ # a slight decline in accuracy. Using the same instances in which we had previously 
+ # classified 98 percent of examples correctly, now classified only 95 percent 
+ # correctly. 
