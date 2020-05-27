@@ -1,4 +1,5 @@
 #  Diagnosing breast cancer with the k-NN algorithm
+# Machine Learning with R - Brett Lantz Chapter 3
 rm(list=ls())
 
 # Step 1 – collecting data
